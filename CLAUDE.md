@@ -17,6 +17,10 @@ repository root and from `.github/workflows/check-tests.yaml`. Run them all from
 You need Python 3.12 or newer. `fred/setup.py` sets `python_requires=">=3.12"`, CI uses `3.12`,
 and `.python-version` pins `3.12.3`.
 
+You also need a C compiler such as `gcc`. `requirements-develop.txt` pins `typed-ast==1.5.5`,
+which has no prebuilt wheel for Python 3.12, so pip builds it from source. The CI runner
+(`ubuntu-latest`) already has a compiler.
+
 This is the same sequence as the "Install Requirements" and "Install Package" steps in CI:
 
 ```sh
@@ -53,6 +57,8 @@ bash check-types.sh   # mypy fred --ignore-missing-imports --install-types --non
 - `--install-types --non-interactive` lets mypy download any missing stub packages without
   prompting, so the type check needs network access.
 - No CI workflow runs these two checks. Run them yourself before you open a pull request.
+- Both checks already report findings on `main`. Compare your output against a run on `main`.
+  Don't expect a clean exit.
 
 ## CI
 
