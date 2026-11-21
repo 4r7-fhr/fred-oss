@@ -1,6 +1,8 @@
 """Which parts of a request reach an endpoint function's arguments."""
 import asyncio
 
+import pytest
+
 from fred.rest.router.endpoint import RouterEndpointAnnotation, RouterEndpointConfig
 from fred.rest.router.interface import RouterInterfaceMixin
 
@@ -74,3 +76,10 @@ def test_the_option_is_kept_out_of_the_route_registration():
     assert default.configs == {"tags": ["x"]} and opted_out.configs == {"tags": ["x"]}
     endpoint = EchoMixin.__dict__["without_headers"].__get__(None, EchoMixin)
     assert endpoint.route_config() == {"path": "/without/{item}", "methods": ["POST"]}
+
+
+@pytest.mark.parametrize("value", ["false", "no", 0, None, "False"])
+def test_an_opt_out_that_is_not_a_bool_fails_when_the_route_is_defined(value):
+    # "false" is truthy: accepting it would keep sending the headers the author meant to withhold.
+    with pytest.raises(TypeError, match="include_headers must be True or False"):
+        RouterEndpointConfig.auto(path="/x", include_headers=value)

@@ -22,14 +22,21 @@ class RouterEndpointConfig:
 
     @classmethod
     def auto(cls, **kwargs) -> "RouterEndpointConfig":
+        # Popped here so it is never passed on to FastAPI's route registration.
+        include_headers = kwargs.pop("include_headers", True)
+        if not isinstance(include_headers, bool):
+            # This option keeps credentials out of forwarded payloads. A value such as "false"
+            # is truthy, so it must fail when the route is defined instead of leaking headers.
+            raise TypeError(
+                f"include_headers must be True or False, not {type(include_headers).__name__}: {include_headers!r}"
+            )
         return cls(
             path=kwargs.pop("path", None),
             methods=(
                 kwargs.pop("methods", None)
                 or ["GET"]
             ),
-            # Popped here so it is never passed on to FastAPI's route registration.
-            include_headers=bool(kwargs.pop("include_headers", True)),
+            include_headers=include_headers,
             configs=kwargs
         )
 
