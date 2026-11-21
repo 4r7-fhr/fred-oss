@@ -18,7 +18,7 @@ class RunnerRouterMixin(RouterInterfaceMixin):
         summary="Check if a handler class exists and is a RunnerHandler.",
         response_description="Details about the handler class.",
     )
-    def handler_exists(self, classname: str, classpath: str, **kwargs) -> dict:
+    def handler_exists(self, /, classname: str, classpath: str, **kwargs) -> dict:
         from fred.worker.runner.handler import RunnerHandler
         from fred.worker.interface import HandlerInterface
 
@@ -50,7 +50,7 @@ class RunnerRouterMixin(RouterInterfaceMixin):
         summary="Get the length of the request and response queues for a given queue slug.",
         response_description="The lengths of the request and response queues.",
     )
-    def qlen(self, queue_slug: str, **kwargs) -> dict:
+    def qlen(self, /, queue_slug: str, **kwargs) -> dict:
         snapshot_at = datetime_utcnow().isoformat()
         req_queue = self.runner_backend.queue(f"req:{queue_slug}")
         res_queue = self.runner_backend.queue(f"res:{queue_slug}")
@@ -69,8 +69,11 @@ class RunnerRouterMixin(RouterInterfaceMixin):
         tags=["Runner"],
         summary="Start a runner using the specified plugin.",
         response_description="The ID of the started runner.",
+        # Every remaining argument goes to the runner spec and to the plugin (for RUNPOD, to another
+        # service): the caller's HTTP headers, its API key among them, must not be among them.
+        include_headers=False,
     )
-    def runner_start(self, **kwargs) -> dict:
+    def runner_start(self, /, **kwargs) -> dict:
         from fred.worker.runner.model.catalog import RunnerModelCatalog
         from fred.worker.runner.plugins.catalog import PluginCatalog
         # Determine which plugin to use; default to LOCAL if not specified
@@ -94,8 +97,11 @@ class RunnerRouterMixin(RouterInterfaceMixin):
         tags=["Runner"],
         summary="Execute a task by dispatching a request to the specified queue.",
         response_description="Details about the dispatched request.",
+        # Every remaining argument becomes the queued job, which workers read and callbacks echo:
+        # the caller's HTTP headers, its API key among them, must not be among them.
+        include_headers=False,
     )
-    def runner_execute(self, **kwargs) -> dict:
+    def runner_execute(self, /, **kwargs) -> dict:
         from fred.worker.runner.model.catalog import RunnerModelCatalog
 
         request_id = kwargs.pop("request_id", None)
@@ -103,6 +109,10 @@ class RunnerRouterMixin(RouterInterfaceMixin):
             logger.error("No 'queue_slug' value provided; defaulting to 'demo'.")
             or "demo"
         )
+
+        # The settings to start a runner are for this route, not for the worker: take them out
+        # before the job is built, so they are not queued with it.
+        start_configs = kwargs.pop("start_configs", None) or {}
 
         item = RunnerModelCatalog.ITEM.value.uuid(payload=kwargs, uuid_hash=False)
         request = item.as_request(use_hash=False, request_id=request_id)
@@ -114,8 +124,7 @@ class RunnerRouterMixin(RouterInterfaceMixin):
         # TODO: Let's optimize this by identifying if there's already an on-going runner for the same spec.
         # If so, we can potentially reuse it instead of starting a new one each time.
         # TODO: Let's remove the '_og' reference and find a cleaner way to handle this...
-        runner_start_output = self.runner_start._og(self, **start_configs) \
-            if (start_configs := kwargs.pop("start_configs", {})) else {}
+        runner_start_output = self.runner_start._og(self, **start_configs) if start_configs else {}
         return {
             "item_id": item.item_id,
             "request_id": request.request_id,
@@ -131,7 +140,7 @@ class RunnerRouterMixin(RouterInterfaceMixin):
         summary="Fetch the output of a previously dispatched request.",
         response_description="The output of the request.",
     )
-    def runner_output(self, request_id: str, nonblocking: bool = False, timeout: Optional[float] = None, **kwargs) -> dict:
+    def runner_output(self, /, request_id: str, nonblocking: bool = False, timeout: Optional[float] = None, **kwargs) -> dict:
 
         output_requested_at = datetime_utcnow().isoformat()
         # Subscribe to the future result using the request_id

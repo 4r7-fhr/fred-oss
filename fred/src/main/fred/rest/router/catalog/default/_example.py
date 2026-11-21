@@ -13,7 +13,7 @@ class RouterExampleMixin(RouterInterfaceMixin):
         summary="Ping endpoint",
         description="A simple ping endpoint to check service availability.",
     )
-    def ping(self, pong: Optional[str] = None, **kwargs) -> dict:
+    def ping(self, /, pong: Optional[str] = None, **kwargs) -> dict:
         from fred.utils.dateops import datetime_utcnow
 
         return {
@@ -27,5 +27,5 @@ class RouterExampleMixin(RouterInterfaceMixin):
         summary="Passthrough GET endpoint",
         description="An endpoint that returns all received parameters.",
     )
-    def passthrough(self, **kwargs) -> dict:
+    def passthrough(self, /, **kwargs) -> dict:
         return kwargs

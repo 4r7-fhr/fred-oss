@@ -12,7 +12,7 @@ class RouterBaseMixin(RouterInterfaceMixin):
         summary="Base endpoint",
         description="A simple base endpoint to check service availability."
     )
-    def base(self, include_telemetry: bool = False, **kwargs) -> dict:
+    def base(self, /, include_telemetry: bool = False, **kwargs) -> dict:
         if include_telemetry:
             from fred.utils.runtime import RuntimeProfilingSnapshot
             kwargs["telemetry"] = RuntimeProfilingSnapshot.auto().to_dict()
