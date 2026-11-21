@@ -14,6 +14,11 @@ class RouterEndpointConfig:
     path: Optional[str] = None
     methods: list[str] = field(default_factory=lambda: ["GET"])
     configs: dict = field(default_factory=dict)
+    # Whether the request's HTTP headers are merged into the arguments the endpoint function
+    # receives (see RouterEndpointAnnotation.__get__). True keeps the long-standing behaviour.
+    # An endpoint that forwards "every other argument" somewhere else (a queue, another service)
+    # must set this to False, or the caller's headers (credentials included) travel with them.
+    include_headers: bool = True
 
     @classmethod
     def auto(cls, **kwargs) -> "RouterEndpointConfig":
@@ -23,8 +28,10 @@ class RouterEndpointConfig:
                 kwargs.pop("methods", None)
                 or ["GET"]
             ),
+            # Popped here so it is never passed on to FastAPI's route registration.
+            include_headers=bool(kwargs.pop("include_headers", True)),
             configs=kwargs
-        ) 
+        )
 
 
 @dataclass(frozen=True, slots=False)
@@ -77,9 +84,11 @@ class RouterEndpointAnnotation(RouterEndpoint):
         # - https://fastapi.tiangolo.com/advanced/using-request-directly/#use-the-request-object-directly
         # - https://stackoverflow.com/questions/67636088/how-to-access-request-object-in-router-function-using-fastapi
         # - https://www.starlette.dev/requests/
+        include_headers = self.configs.include_headers
+
         async def closure(request: Request):
             params = {
-                **request.headers,
+                **(request.headers if include_headers else {}),
                 **request.path_params,
                 **request.query_params,
             }
